@@ -1,37 +1,40 @@
 package ru.urfu;
 
-import com.itextpdf.text.DocumentException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.beans.factory.annotation.Autowired;
-import ru.urfu.document.Document;
-import ru.urfu.document.DocumentService;
-import ru.urfu.utils.PdfExporter;
+import ru.urfu.commands.Command;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Основной класс консольного приложения.
- * Реализует ввод команд и взаимодействие с сервисами.
+ * На класс было возложено слишком много ответственности (запуск приложения,
+ * обработка команд, их выполнение) - это и темная сторона ООП и нарушение
+ * первого принципа SOLID - принципа единой ответственности.
+ * Кроме этого, у методов listDocuments и exportDocument были неправильные JavaDoc'и.
+ * Теперь же это исправляется за счет реализации классов-команд,
+ * реализующих интерфейс Command (название класса говорит само за себя).
+ * Также, если вернуться к изначальной версии этого класса, то можно увидеть, что
+ * нарушается принцип инверсии зависимостей. То есть верхнеуровневый класс ConsoleApp
+ * зависел от экспортера PdfExporter.
  */
 @SpringBootApplication
 public class ConsoleApp implements CommandLineRunner {
-
-    public static final Path OUTPUT_DIR = Path.of(System.getProperty("user.home"), "lessonSOLID");
-
-    private final DocumentService documentService;
-
     private final Scanner scanner = new Scanner(System.in);
 
+    private final Map<String, Command> commands;
+
     @Autowired
-    public ConsoleApp(DocumentService documentService) {
-        this.documentService = documentService;
+    public ConsoleApp(List<Command> commands) {
+        this.commands = commands.stream().collect(Collectors.toMap(
+                Command::getCommand,
+                Function.identity()));
     }
 
     /**
@@ -45,119 +48,29 @@ public class ConsoleApp implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        //Сохранив методы обработки команд в ConsoleApp, нарушается второй принцип SOLID -
+        //принцип открытой закрытости. При добавлении новой команды мне бы пришлось
+        //изменять существующий код. Благодаря созданию интерфейса Command и возможностям
+        //Spring'а этого я избежал. Теперь для добавления новой команды нужно всего лишь
+        //создать новый класс.
+
         System.out.println("=== Консольное приложение ===");
 
         while (true) {
-            System.out.println("\nКоманды: import, list, create, export, exit");
+            //Для того чтобы не нарушать принцип открытой закрытости,
+            //можно автоматически сгенерировать сроку доступных команд
+            String availableCommands = String.join(", ", commands.keySet());
+            System.out.println("\nКоманды: " + availableCommands + ", exit");
             System.out.print("> ");
             String cmd = scanner.nextLine().trim();
 
-            switch (cmd) {
-                case "create" -> createDocument();
-                case "import" -> importDocument();
-                case "list" -> listDocuments();
-                case "export" -> exportDocument();
-                case "exit" -> {
-                    return;
-                }
-                default -> System.out.println("Неизвестная команда");
+            if("exit".equals(cmd)) {
+                break;
             }
-        }
-    }
-
-    /**
-     * Создаёт документ через ввод данных в консоли.
-     * Сначала пользователь вводит имя, затем — содержимое документа.
-     * Ввод содержимого продолжается до пустой строки.
-     */
-    private void createDocument() {
-        System.out.print("Введите имя документа: ");
-        String name = scanner.nextLine().trim();
-
-        System.out.println("Введите содержимое документа (пустая строка — завершить ввод):");
-
-        StringBuilder content = new StringBuilder();
-        while (true) {
-            String line = scanner.nextLine();
-            if (line.isEmpty()) break; // окончание ввода
-            content.append(line).append(System.lineSeparator());
-        }
-
-        documentService.createDocument(name, content.toString());
-
-        System.out.println("Документ создан и сохранён в памяти.");
-    }
-
-    /**
-     * Выполняет импорт документа.
-     */
-    private void importDocument() {
-        System.out.print("Введите путь к txt файлу: ");
-        String path = scanner.nextLine();
-
-        try {
-            documentService.importTxt(path);
-        } catch (IOException e) {
-            System.out.println("Ошибка импорта: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Выполняет импорт документа.
-     */
-    private void listDocuments() {
-        List<Document> documents = documentService.list();
-        if (documents.isEmpty()) {
-            System.out.println("Документов нет");
-            return;
-        }
-        int i = 0;
-        for (Document doc : documents) {
-            System.out.println(i + ": " + doc.name());
-            i++;
-        }
-    }
-
-    /**
-     * Выполняет импорт документа.
-     */
-    private void exportDocument() {
-        System.out.print("Введите номер документа: ");
-        int index = Integer.parseInt(scanner.nextLine());
-
-        Optional<Document> documentOptional = documentService.getDocument(index);
-        if (documentOptional.isEmpty()) {
-            System.out.println("Нет документа с таким номером.");
-            return;
-        }
-
-        Document document = documentOptional.get();
-
-        System.out.print("Введите формат (txt/pdf): ");
-        String format = scanner.nextLine().trim().toLowerCase();
-
-        try {
-            Files.createDirectories(OUTPUT_DIR);
-        } catch (IOException e) {
-            System.out.println("Ошибка создания директории: " + e);
-            return;
-        }
-
-        Path outputPath = OUTPUT_DIR.resolve(document.name() + "." + format);
-
-        try {
-            switch (format) {
-                case "txt" -> Files.writeString(outputPath, document.content());
-                case "pdf" -> PdfExporter.export(outputPath.toString(), document.content());
-                default -> {
-                    System.out.println("Неверный формат");
-                    return;
-                }
+            if(!commands.containsKey(cmd)) {
+                System.out.println("Неизвестная команда");
             }
-
-            System.out.println("Экспорт выполнен: " + outputPath);
-        } catch (IOException | DocumentException e) {
-            System.out.println("Ошибка экспорта: " + e.getMessage());
+            commands.get(cmd).execute();
         }
     }
 }
