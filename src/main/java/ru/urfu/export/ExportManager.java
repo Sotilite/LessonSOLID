@@ -37,11 +37,21 @@ public class ExportManager {
      * Обработчик экспорта файлов
      */
     public void handleExport(String format, String outputPath, String content)
-            throws IOException, DocumentException {
+            throws IOException {
+        //Общение с пользователем должно быть лишь в ConsoleApp
+        //или в обработчиках команд, иначе размывается ответственность
         if(!exporters.containsKey(format)) {
-            System.out.println("Неверный формат");
-            return;
+            throw new IOException("Неверный формат");
         }
         exporters.get(format).export(outputPath, content);
+    }
+
+    /**
+     * Получить доступные форматы экспорта
+     *
+     * @return строка, где доступные форматы разделяются слэшами
+     */
+    public String getAvailableFormats() {
+        return String.join("/", exporters.keySet());
     }
 }

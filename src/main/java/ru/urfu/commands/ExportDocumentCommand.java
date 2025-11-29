@@ -1,6 +1,7 @@
 package ru.urfu.commands;
 
 import com.itextpdf.text.DocumentException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import ru.urfu.document.Document;
 import ru.urfu.document.DocumentService;
@@ -25,6 +26,7 @@ public class ExportDocumentCommand implements Command {
 
     private final ExportManager exportManager;
 
+    @Autowired
     public ExportDocumentCommand(DocumentService documentService,
                                  ExportManager exportManager) {
         this.documentService = documentService;
@@ -44,7 +46,11 @@ public class ExportDocumentCommand implements Command {
 
         Document document = documentOptional.get();
 
-        System.out.print("Введите формат (txt/pdf): ");
+        //Для того чтобы не нарушать принцип открытой закрытости,
+        //можно из менеджера получить автоматически сгенерированную
+        //сроку доступных форматов для экспорта
+        String availableFormats = exportManager.getAvailableFormats();
+        System.out.print("Введите формат (" + availableFormats + "): ");
         String format = scanner.nextLine().trim().toLowerCase();
 
         try {
@@ -59,7 +65,7 @@ public class ExportDocumentCommand implements Command {
         try {
             exportManager.handleExport(format, outputPath.toString(),document.content());
             System.out.println("Экспорт выполнен: " + outputPath);
-        } catch (IOException | DocumentException e) {
+        } catch (IOException e) {
             System.out.println("Ошибка экспорта: " + e.getMessage());
         }
     }

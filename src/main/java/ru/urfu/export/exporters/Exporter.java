@@ -1,18 +1,20 @@
 package ru.urfu.export.exporters;
 
-import com.itextpdf.text.DocumentException;
-
 import java.io.IOException;
 
 /**
- * Экспортер текстовых документов
+ * Экспортер текстовых документов.
+ * Выделение данного интерфейса решает нарушение принципа открытой закрытости.
+ * Теперь мне не нужно изменять существующий код при добавлении нового формата,
+ * необходимо просто создать новый класс имплементирующий интерфейс Exporter.
  */
 public interface Exporter {
     /**
-     * Экспортировать содержимое в файл
+     * Экспортировать содержимое в файл.
+     * Решил оставить IOException, как общий класс исключений,
+     * возникающих в результате неудачных или прерванных операций ввода-вывода.
      */
-    void export(String outputPath, String content)
-            throws DocumentException, IOException;
+    void export(String outputPath, String content) throws IOException;
 
     /**
      * Получить формат экспорта

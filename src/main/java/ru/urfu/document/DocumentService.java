@@ -20,7 +20,11 @@ public class DocumentService {
      * Импортирует текстовый файл и добавляет его как документ в память.
      *
      * @param pathStr путь к txt файлу
-     * @throws IOException если файл не найден или не удаётся прочитать
+     * @throws IOException если файл не найден или не удаётся прочитать.
+     * Нарушает принцип единой ответственности, нужно выделить отдельный класс импорта,
+     * например ImportManager. Также общение с пользователем должно быть лишь в
+     * ConsoleApp или в обработчиках команд, темная сторона ООП -
+     * коллективная безответственность
      */
     public void importTxt(String pathStr) throws IOException {
         Path path = Path.of(pathStr);

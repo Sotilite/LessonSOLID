@@ -15,8 +15,7 @@ import java.io.IOException;
 @Component
 public class PdfExporter implements Exporter {
     @Override
-    public void export(String outputPath, String content)
-            throws DocumentException, IOException {
+    public void export(String outputPath, String content) throws IOException {
         try (FileOutputStream outputStream = new FileOutputStream(outputPath)) {
             Document pdf = new Document();
             PdfWriter.getInstance(pdf, outputStream);
@@ -24,6 +23,8 @@ public class PdfExporter implements Exporter {
             pdf.open();
             pdf.add(new Paragraph(content));
             pdf.close();
+        } catch (DocumentException ex) {
+            throw new IOException(ex.getMessage());
         }
     }
 
